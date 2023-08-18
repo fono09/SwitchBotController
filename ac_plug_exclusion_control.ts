@@ -44,8 +44,22 @@ console.log(json);
 
 headers = generateHeader(token, secret);
 body = JSON.stringify({
+  action: "deleteWebhook",
+  url: "http://swb-wh2.fono.jp/",
+  deviceList: "ALL",
+})
+res = await fetch(`https://api.switch-bot.com/v1.1/webhook/deleteWebhook`, {
+  method: "POST",
+  headers: { ...headers, "Content-Length": body.length, },
+  body: body
+});;
+json = await res.json();
+console.log(json);
+
+headers = generateHeader(token, secret);
+body = JSON.stringify({
   action: "setupWebhook",
-  url: "https://swb-wh.fono.jp/",
+  url: "http://swb-wh2.fono.jp/",
   deviceList: "ALL",
 })
 res = await fetch(`https://api.switch-bot.com/v1.1/webhook/setupWebhook`, {
@@ -78,6 +92,7 @@ async function serveHttp(conn: Deno.Conn) {
     try {
       console.log(await requestEvent.request.json())
     } catch {
+      console.log('Request doesn\'t have json body')
       requestEvent.respondWith(
         new Response(null, {
           status: 204,

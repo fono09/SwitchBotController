@@ -12,7 +12,10 @@ services:
       ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/ac_plug_exclusion_control.ts"]
     expose:
       - 8080
+    env_file:
+      - .env
 networks:
   ext:
   br-ext:
+    driver: overlay
     external: true
