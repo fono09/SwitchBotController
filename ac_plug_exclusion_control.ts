@@ -36,12 +36,6 @@ let ac_params = {
 let body, headers, res, json;
 
 headers = generateHeader(token, secret);
-body = JSON.stringify({
-  "command": "setAll",
-  "commandType": "command",
-  "parameter":
-    `${ac_params.temp},${ac_params.mode},${ac_params.fan_speed},${ac_params.power_state}`,
-});
 res = await fetch(`https://api.switch-bot.com/v1.1/devices`, {
   headers: { ...headers },
 });
@@ -50,29 +44,52 @@ console.log(json);
 
 headers = generateHeader(token, secret);
 body = JSON.stringify({
-  "command": "turnOn",
-  "commandType": "command",
-  "parameter": "default",
-});
-res = await fetch(`https://api.switch-bot.com/v1.1/devices/${plug}/commands`, {
+  action: "setupWebhook",
+  url: "https://swb-wh.fono.jp/",
+  deviceList: "ALL",
+})
+res = await fetch(`https://api.switch-bot.com/v1.1/webhook/setupWebhook`, {
   method: "POST",
-  body: body,
-  headers: {
-    ...headers,
-    "Content-Length": body.length,
-  },
-});
+  headers: { ...headers, "Content-Length": body.length, },
+  body: body
+});;
 json = await res.json();
 console.log(json);
 
-headers = generateHeader(token, secret);
-res = await fetch(`https://api.switch-bot.com/v1.1/devices/${ac}/commands`, {
-  method: "POST",
-  body: body,
-  headers: {
-    ...headers,
-    "Content-Length": body.length,
-  },
-});
-json = await res.json();
-console.log(json.body.items[0].status);
+
+const server = Deno.listen({ port: 8080 });
+for await (const conn of server) {
+  serveHttp(conn);
+}
+
+async function serveHttp(conn: Deno.Conn) {
+  // This "upgrades" a network connection into an HTTP connection.
+  const httpConn = Deno.serveHttp(conn);
+  // Each request sent over the HTTP connection will be yielded as an async
+  // iterator from the HTTP connection.
+  for await (const requestEvent of httpConn) {
+    // The native HTTP server uses the web standard `Request` and `Response`
+    // objects.
+    const body = `Your user-agent is:\n\n${
+      requestEvent.request.headers.get("user-agent") ?? "Unknown"
+    }`;
+    // The requestEvent's `.respondWith()` method is how we send the response
+    // back to the client.
+    try {
+      console.log(await requestEvent.request.json())
+    } catch {
+      requestEvent.respondWith(
+        new Response(null, {
+          status: 204,
+        }),
+      );
+      return
+    }
+
+    requestEvent.respondWith(
+      new Response(body, {
+        status: 200,
+      }),
+    );
+  }
+}

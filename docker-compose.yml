@@ -1,0 +1,18 @@
+version: "3"
+services:
+  switchbot-webhook:
+    image: denoland/deno:ubuntu
+    volumes:
+      - ./config:/config
+      - ./:/app
+    networks:
+      - ext
+      - br-ext
+    command:
+      ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/ac_plug_exclusion_control.ts"]
+    expose:
+      - 8080
+networks:
+  ext:
+  br-ext:
+    external: true
