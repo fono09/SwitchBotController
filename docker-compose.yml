@@ -9,7 +9,7 @@ services:
       - ext
       - br-ext
     command:
-      ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/ac_plug_exclusion_control.ts"]
+      ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/swb-ushiku-ctl.ts"]
     expose:
       - 8080
     env_file:
