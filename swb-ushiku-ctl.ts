@@ -113,7 +113,7 @@ const stateManager = new StateManager([
       "setAll",
       "20,5,1,on"
     )
-  }),
+  ),
   new StateEntry("Nop", d => (65 <= d && d < 70),
     async () =>  await sendCommandToDevice(
       AirConditioner.deviceId,

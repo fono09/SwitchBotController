@@ -5,17 +5,18 @@ services:
     volumes:
       - ./config:/config
       - ./:/app
-    networks:
-      - ext
-      - br-ext
+#    networks:
+#      - ext
+#      - br-ext
     command:
       ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/swb-ushiku-ctl.ts"]
     expose:
       - 8080
     env_file:
       - .env
-networks:
-  ext:
-  br-ext:
-    driver: overlay
-    external: true
+    restart: always
+# networks:
+#   ext:
+#   br-ext:
+#     driver: overlay
+#     external: true

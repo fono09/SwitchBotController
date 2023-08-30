@@ -33,5 +33,6 @@ export class StateManager {
     await nextState.exec()
 
     this.currentState = nextState
+    console.log(`currentState: ${currentState.name}`)
   }
 }
