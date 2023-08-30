@@ -4,7 +4,7 @@ export type BaseDevice = {
   hubDeviceId: string
 }
 
-export type InfratedDevice = BaseDevice & {
+export type InfraredDevice = BaseDevice & {
   remoteType: string
 }
 
@@ -20,7 +20,7 @@ export type GetDevicesResponse = {
   message: string
   body: {
     deviceList: NormalDevice[]
-    InfratedRemoteList: InfratedDevice[]
+    infraredRemoteList: InfraredDevice[]
   }
 }
 
@@ -31,9 +31,21 @@ export type GetDeviceStatusResponse = {
     deviceId: string
     deviceType: string
     hubDeviceId: string
-    temperature: float
     version: string
     battery: int
-    humidity: int
-  }
+  } & (
+    MeterStatus
+    | ContactSensorStatus
+  )
+}
+
+export type MeterStatus = {
+  temperature: float
+  humidity: int
+}
+
+export type ContactSensorStatus = {
+  moveDetected: bool
+  openState: "open"|"close"|"timeOutNotClose"
+  brightness: "bright"|"dim"
 }
