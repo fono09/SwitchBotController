@@ -57,7 +57,6 @@ async function sendCommandToDevice(deviceId: string, commandType: string, comman
 }
 
 const getDevicesResponse = await getDevices()
-console.log({getDevicesResponse})
 if (
   !('statusCode' in getDevicesResponse)
   || getDevicesResponse.statusCode !== 100
@@ -103,7 +102,7 @@ const stateManager = new StateManager([
       AirConditioner.deviceId,
       "command",
       "setAll",
-      "23,5,4,on"
+      "23,5,6,on"
     )
   ),
   new StateEntry("MaintainHeater", d => (60 <= d && d < 65),
@@ -135,7 +134,7 @@ const stateManager = new StateManager([
       AirConditioner.deviceId,
       "command",
       "setAll",
-      "23,2,4,on"
+      "16,2,6,on"
     )
   ),
 ])
@@ -143,7 +142,6 @@ const stateManager = new StateManager([
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
   const openState = await getContactSensorOpenState(ContactSensor.deviceId)
-  console.log({meterResponse, openState})
   let disconfortIndex = 0
   switch(openState) {
     case "open":
@@ -154,6 +152,7 @@ async function tick() {
       disconfortIndex = meterResponse.washitsu.disconfortIndex
       break;
     default:
+      console.log("Unexpected openState")
       console.log({openState})
   }
 

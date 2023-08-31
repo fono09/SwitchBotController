@@ -33,6 +33,7 @@ export class StateManager {
     await nextState.exec()
 
     this.currentState = nextState
-    console.log(`currentState: ${currentState.name}`)
+    console.log("currentStateChanged")
+    console.log(`currentState: ${this.currentState.name}`)
   }
 }
