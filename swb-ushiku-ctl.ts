@@ -97,7 +97,7 @@ async function getContactSensorOpenState(deviceId) {
 }
 
 const stateManager = new StateManager([
-  new StateEntry("MaxHeater", d => (d < 60),
+  new StateEntry("MaxHeater", d => (d < 55),
     async () => await sendCommandToDevice(
       AirConditioner.deviceId,
       "command",
@@ -105,7 +105,7 @@ const stateManager = new StateManager([
       "23,5,6,on"
     )
   ),
-  new StateEntry("MaintainHeater", d => (60 <= d && d < 65),
+  new StateEntry("MaintainHeater", d => (55 <= d && d < 60),
     async () => await sendCommandToDevice(
       AirConditioner.deviceId,
       "command",
@@ -113,7 +113,7 @@ const stateManager = new StateManager([
       "20,5,1,on"
     )
   ),
-  new StateEntry("Nop", d => (65 <= d && d < 70),
+  new StateEntry("Nop", d => (60 <= d && d < 75),
     async () =>  await sendCommandToDevice(
       AirConditioner.deviceId,
       "command",
@@ -121,7 +121,7 @@ const stateManager = new StateManager([
       "25,2,1,off"
     )
   ),
-  new StateEntry("MaintainCooler", d => (70 <= d && d < 75),
+  new StateEntry("MaintainCooler", d => (75 <= d && d < 80),
     async () => await sendCommandToDevice(
       AirConditioner.deviceId,
       "command",
@@ -129,7 +129,7 @@ const stateManager = new StateManager([
       "25,2,1,on"
     )
   ),
-  new StateEntry("MaxCooler", d => (75 <= d),
+  new StateEntry("MaxCooler", d => (80 <= d),
     async () => await sendCommandToDevice(
       AirConditioner.deviceId,
       "command",
