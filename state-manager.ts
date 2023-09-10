@@ -1,3 +1,5 @@
+import Logger from "https://deno.land/x/logger@v1.1.1/logger.ts"
+
 export class StateEntry {
   name: string
   match: (number) => bool
@@ -14,15 +16,16 @@ export class StateManager {
   currentState: StateEntry
   stateMap: StateEntry[]
 
-  constructor(entries: StateEntry[]) {
+  constructor(entries: StateEntry[], logger: Logger) {
     this.stateMap = entries
     this.currentState = new StateEntry("", (d) => false, () => {})
+    this.logger = logger
   }
 
   async tick(disconfortIndex: number) {
     const nextState = this.stateMap.find(e => e.match(disconfortIndex))
     if (typeof nextState === "undefined") {
-      console.log('nextState is unedefined')
+      this.logger.info('nextState is unedefined')
       return
     }
 
@@ -33,7 +36,7 @@ export class StateManager {
     await nextState.exec()
 
     this.currentState = nextState
-    console.log("currentStateChanged")
-    console.log(`currentState: ${this.currentState.name}`)
+    this.logger.info("currentStateChanged")
+    this.logger.info(`currentState: ${this.currentState.name}`)
   }
 }

@@ -3,6 +3,7 @@ import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts";
 import { Buffer } from "https://deno.land/std@0.168.0/node/buffer.ts";
 import { BaseDevice, NormalDevice, InfratedDevice, Device, GetDevicesReponse } from "./swb-types.ts"
 import { StateEntry, StateManager } from "./state-manager.ts"
+import Logger from "https://deno.land/x/logger@v1.1.1/logger.ts"
 
 const token = config.get("switchbot.token");
 const secret = config.get("switchbot.secret");
@@ -137,7 +138,7 @@ const stateManager = new StateManager([
       "16,2,6,on"
     )
   ),
-])
+], new Logger())
 
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
