@@ -11,7 +11,7 @@ export type InfraredDevice = BaseDevice & {
 export type NormalDevice = BaseDevice & {
   deviceType: string
   enableCloudService: bool
-} 
+}
 
 export type Device = NormalDevice | InfratedDevice
 
@@ -27,16 +27,18 @@ export type GetDevicesResponse = {
 export type GetDeviceStatusResponse = {
   statusCode: int
   message: string
-  body: {
-    deviceId: string
-    deviceType: string
-    hubDeviceId: string
-    version: string
-    battery: int
-  } & (
-    MeterStatus
-    | ContactSensorStatus
-  )
+  body:
+    & {
+      deviceId: string
+      deviceType: string
+      hubDeviceId: string
+      version: string
+      battery: int
+    }
+    & (
+      | MeterStatus
+      | ContactSensorStatus
+    )
 }
 
 export type MeterStatus = {
@@ -46,6 +48,6 @@ export type MeterStatus = {
 
 export type ContactSensorStatus = {
   moveDetected: bool
-  openState: "open"|"close"|"timeOutNotClose"
-  brightness: "bright"|"dim"
+  openState: "open" | "close" | "timeOutNotClose"
+  brightness: "bright" | "dim"
 }

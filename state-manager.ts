@@ -23,9 +23,9 @@ export class StateManager {
   }
 
   async tick(disconfortIndex: number) {
-    const nextState = this.stateMap.find(e => e.match(disconfortIndex))
+    const nextState = this.stateMap.find((e) => e.match(disconfortIndex))
     if (typeof nextState === "undefined") {
-      this.logger.info('nextState is unedefined')
+      this.logger.info("nextState is unedefined")
       return
     }
 
