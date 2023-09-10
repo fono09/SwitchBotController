@@ -1,6 +1,6 @@
 version: "3"
 services:
-  switchbot-webhook:
+  swbc:
     image: denoland/deno:ubuntu
     volumes:
       - ./config:/config

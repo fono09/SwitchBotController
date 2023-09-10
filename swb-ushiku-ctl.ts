@@ -8,8 +8,8 @@ import {
   InfratedDevice,
   NormalDevice,
 } from "./swb-types.ts"
-import { StateEntry, StateManager } from "./state-manager.ts"
 import Logger from "https://deno.land/x/logger@v1.1.1/logger.ts"
+import { PidController } from "./pidControll.ts"
 
 const token = config.get("switchbot.token")
 const secret = config.get("switchbot.secret")
@@ -86,19 +86,23 @@ const Meters = {
   washitsu: getDevicesResponse.body.deviceList.find((e) =>
     e.deviceName === "和室温湿度計"
   ),
-  ima: getDevicesResponse.body.deviceList.find((e) =>
-    e.deviceName === "居間温湿度計"
-  ),
+  // ima: getDevicesResponse.body.deviceList.find((e) => e.deviceName === "倉庫温湿度計"),
   //  soto: getDevicesResponse.body.deviceList.find(e => e.deviceName === "屋外温湿度計"),
-  //  youshitsu: getDevicesResponse.body.deviceList.find(e => e.deviceName === "洋室温湿度計"),
+  youshitsu: getDevicesResponse.body.deviceList.find((e) =>
+    e.deviceName === "洋室温湿度計"
+  ),
 }
-
-const ContactSensor = getDevicesResponse.body.deviceList.find((e) =>
-  e.deviceName === "居間開閉"
-)
 
 const AirConditioner = getDevicesResponse.body.infraredRemoteList.find((e) =>
   e.deviceName === "和室エアコン"
+)
+
+const AirConditionerPlugMini = getDevicesResponse.body.deviceList.find((e) =>
+  e.deviceName === "和室エアコンプラグ"
+)
+
+const AirConditionerW = getDevicesResponse.body.infraredRemoteList.find((e) =>
+  e.deviceName === "洋室エアコン"
 )
 
 async function getAllMetersStatus(meters) {
@@ -120,87 +124,87 @@ async function getAllMetersStatus(meters) {
   }, {})
 }
 
-async function getContactSensorOpenState(deviceId) {
-  const contactSensorResponse = await getMeterStatus(deviceId)
-  return contactSensorResponse.body.openState
+function calcDiDeviation(
+  di: Number,
+  di_t_min: Number,
+  di_t_max: Number,
+): void {
+  let di_t = 1
+  if (di < di_t_min) {
+    di_t = di_t_min
+  } else if (di_t_max < di) {
+    di_t = di_t_max
+  } else {
+    return 0
+  }
+  return di_t - di
 }
 
-const stateManager = new StateManager([
-  new StateEntry(
-    "MaxHeater",
-    (d) => (d < 55),
-    async () =>
-      await sendCommandToDevice(
-        AirConditioner.deviceId,
-        "command",
-        "setAll",
-        "23,5,6,on",
-      ),
-  ),
-  new StateEntry(
-    "MaintainHeater",
-    (d) => (55 <= d && d < 60),
-    async () =>
-      await sendCommandToDevice(
-        AirConditioner.deviceId,
-        "command",
-        "setAll",
-        "20,5,1,on",
-      ),
-  ),
-  new StateEntry(
-    "Nop",
-    (d) => (60 <= d && d < 73),
-    async () =>
-      await sendCommandToDevice(
-        AirConditioner.deviceId,
-        "command",
-        "setAll",
-        "25,2,1,off",
-      ),
-  ),
-  new StateEntry(
-    "MaintainCooler",
-    (d) => (73 <= d && d < 78),
-    async () =>
-      await sendCommandToDevice(
-        AirConditioner.deviceId,
-        "command",
-        "setAll",
-        "25,2,1,on",
-      ),
-  ),
-  new StateEntry(
-    "MaxCooler",
-    (d) => (78 <= d),
-    async () =>
-      await sendCommandToDevice(
-        AirConditioner.deviceId,
-        "command",
-        "setAll",
-        "16,2,6,on",
-      ),
-  ),
-], logger)
+function buildAirConditionerSetting(
+  pidOutput,
+  temperature,
+  humidity,
+): string {
+  logger.info({ pidOutput, temperature, humidity })
+  const runningState = pidOutput > 0 ? 5 : 2 // heater: 5, cooler: 2
+
+  if (-1 < pidOutput && pidOutput < 1) {
+    return "20,2,1,off"
+  }
+  const temperatureDiff = pidOutput * (0.81 * 0.0099 * humidity)
+  logger.info({ temperatureDiff, temperature })
+
+  let targetTemperature = temperature + temperatureDiff
+  logger.info({ targetTemperature })
+  if (pidOutput > 0 && targetTemperature > 23) {
+    targetTemperature = 23
+  } else if (targetTemperature == 0) {
+    targetTemperature = 25
+  } else if (pidOutput < 0 && targetTemperature < 16) {
+    targetTemperature = 16
+  }
+  targetTemperature = Math.trunc(targetTemperature)
+  return `${targetTemperature},${runningState},1,on`
+}
+
+const pidController = new PidController(1 / 3, 1 / 3, 1 / 3)
+let lastCommand = ""
+let lastPlugPower = false
 
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
-  const openState = await getContactSensorOpenState(ContactSensor.deviceId)
   let disconfortIndex = 0
-  switch (openState) {
-    case "open":
-    case "timeOutNotClose":
-      disconfortIndex = meterResponse.ima.disconfortIndex
-      break
-    case "close":
-      disconfortIndex = meterResponse.washitsu.disconfortIndex
-      break
-    default:
-      logger.info("Unexpected openState")
-      logger.info({ openState })
+  disconfortIndex = meterResponse.washitsu.disconfortIndex
+
+  const currentPlugPower =
+    (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
+
+  const pidOutput = pidController.calcOutput(
+    calcDiDeviation(disconfortIndex, 65, 73),
+  )
+
+  let currentCommand = buildAirConditionerSetting(
+    pidOutput,
+    meterResponse.washitsu.temperature,
+    meterResponse.washitsu.humidity,
+  )
+  if (lastCommand != currentCommand || lastPlugPower != currentPlugPower) {
+    logger.info("Command sent!")
+    logger.info({
+      lastCommand,
+      currentCommand,
+      lastPlugPower,
+      currentPlugPower,
+    })
+    lastCommand = currentCommand
+    lastPlugPower = currentPlugPower
+    await sendCommandToDevice(
+      AirConditioner.deviceId,
+      "command",
+      "setAll",
+      currentCommand,
+    )
   }
-  logger.info({ disconfortIndex })
-  await stateManager.tick(disconfortIndex)
 }
 
 tick()
