@@ -150,7 +150,7 @@ const stateManager = new StateManager([
   ),
   new StateEntry(
     "Nop",
-    (d) => (60 <= d && d < 75),
+    (d) => (60 <= d && d < 73),
     async () =>
       await sendCommandToDevice(
         AirConditioner.deviceId,
@@ -161,7 +161,7 @@ const stateManager = new StateManager([
   ),
   new StateEntry(
     "MaintainCooler",
-    (d) => (75 <= d && d < 80),
+    (d) => (73 <= d && d < 78),
     async () =>
       await sendCommandToDevice(
         AirConditioner.deviceId,
@@ -172,7 +172,7 @@ const stateManager = new StateManager([
   ),
   new StateEntry(
     "MaxCooler",
-    (d) => (80 <= d),
+    (d) => (78 <= d),
     async () =>
       await sendCommandToDevice(
         AirConditioner.deviceId,
