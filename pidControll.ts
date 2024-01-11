@@ -8,18 +8,18 @@ export class PidController {
 
   appendHistory(e: Number) {
     this.e_history.unshift(e)
-    if (this.e_history.length > 8) {
+    if (this.e_history.length > 16) {
       this.e_history.pop()
     }
+    const e_history = this.e_history
+    console.log({e_history})
   }
 
   calcOutput(e: Number) {
     this.appendHistory(e)
 
     const p = this.k_p * e
-    const i = this.k_i *
-      (this.e_history.reduce((cur, acc) => acc + cur, 0) /
-        this.e_history.length)
+    const i = this.k_i * this.e_history.reduce((cur, acc) => acc + cur, 0)
     const d = this.k_d * (e - (this.e_history[1] ?? 0))
 
     const json = this.json()
