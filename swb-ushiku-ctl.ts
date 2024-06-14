@@ -10,6 +10,7 @@ import {
 } from "./swb-types.ts"
 import Logger from "https://deno.land/x/logger@v1.1.1/logger.ts"
 import { PidController } from "./pidControll.ts"
+import { ControllSet } from "./controllSet.ts"
 
 const token = config.get("switchbot.token")
 const secret = config.get("switchbot.secret")
@@ -105,6 +106,10 @@ const AirConditionerW = getDevicesResponse.body.infraredRemoteList.find((e) =>
   e.deviceName === "洋室エアコン"
 )
 
+const ColorBulbW = getDevicesResponse.body.deviceList.find((e) =>
+  e.deviceName = "洋室電球定位"
+)
+
 async function getAllMetersStatus(meters) {
   const keyAndPromise = Object.entries(meters)
     .map(async (e) => {
@@ -168,43 +173,49 @@ function buildAirConditionerSetting(
 }
 
 const pidController = new PidController(1 / 3, 1 / 3, 1 / 3)
-let lastCommand = ""
-let lastPlugPower = false
+const controllSet = new ControllSet(
+  sendCommandToDevice,
+  AirConditioner.deviceId,
+)
+
+const pidControllerW = new PidController(1 / 3, 1 / 3, 1 / 3)
+const controllSetW = new ControllSet(
+  sendCommandToDevice,
+  AirConditionerW.deviceId
+)
 
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
-  let disconfortIndex = 0
-  disconfortIndex = meterResponse.washitsu.disconfortIndex
 
-  const currentPlugPower =
-    (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
-
-  const pidOutput = pidController.calcOutput(
-    calcDiDeviation(disconfortIndex, 65, 73),
+  controllSet.tick(
+    buildAirConditionerSetting(
+      pidController.calcOutput(
+        calcDiDeviation(
+          meterResponse.washitsu.disconfortIndex,
+          65,
+          73
+        ),
+      ),
+      meterResponse.washitsu.temperature,
+      meterResponse.washitsu.humidity,
+    ),
+    ((await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on")
   )
 
-  let currentCommand = buildAirConditionerSetting(
-    pidOutput,
-    meterResponse.washitsu.temperature,
-    meterResponse.washitsu.humidity,
+  controllSetW.tick(
+    buildAirConditionerSetting(
+      pidControllerW.calcOutput(
+        calcDiDeviation(
+          meterResponse.youshitsu.disconfortIndex,
+          65,
+          73
+        )
+      ),
+      meterResponse.washitsu.temperature,
+      meterResponse.washitsu.humidity,
+    ),
+    (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
   )
-  if (lastCommand != currentCommand || lastPlugPower != currentPlugPower) {
-    logger.info("Command sent!")
-    logger.info({
-      lastCommand,
-      currentCommand,
-      lastPlugPower,
-      currentPlugPower,
-    })
-    lastCommand = currentCommand
-    lastPlugPower = currentPlugPower
-    await sendCommandToDevice(
-      AirConditioner.deviceId,
-      "command",
-      "setAll",
-      currentCommand,
-    )
-  }
 }
 
 tick()
