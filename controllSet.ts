@@ -31,6 +31,7 @@ export class ControllSet {
         "setAll",
         currentCommand
       )
+
       this.lastCommand = currentCommand
       this.lastToggle = currentToggle
     }

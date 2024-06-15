@@ -81,6 +81,8 @@ if (
   getDevicesResponse.statusCode !== 100
 ) {
   throw new Error("Cannot call API")
+} else {
+  await Deno.writeTextFile("/app/devices.json", JSON.stringify(getDevicesResponse.body))
 }
 
 const Meters = {
@@ -107,7 +109,7 @@ const AirConditionerW = getDevicesResponse.body.infraredRemoteList.find((e) =>
 )
 
 const ColorBulbW = getDevicesResponse.body.deviceList.find((e) =>
-  e.deviceName = "洋室電球定位"
+  e.deviceName = "洋室デスク照明"
 )
 
 async function getAllMetersStatus(meters) {
@@ -149,18 +151,22 @@ function buildAirConditionerSetting(
   pidOutput,
   temperature,
   humidity,
+  toggle,
 ): string {
   logger.info({ pidOutput, temperature, humidity })
   const runningState = pidOutput > 0 ? 5 : 2 // heater: 5, cooler: 2
 
-  if (-1 < pidOutput && pidOutput < 1) {
+  if (
+      (-1 < pidOutput && pidOutput < 1)
+      || !toggle
+    ) {
+
+    logger.info({ power: "off", toggle })
     return "20,2,1,off"
   }
   const temperatureDiff = pidOutput * (0.81 * 0.0099 * humidity)
-  logger.info({ temperatureDiff, temperature })
 
   let targetTemperature = temperature + temperatureDiff
-  logger.info({ targetTemperature })
   if (pidOutput > 0 && targetTemperature > 23) {
     targetTemperature = 23
   } else if (targetTemperature == 0) {
@@ -169,6 +175,7 @@ function buildAirConditionerSetting(
     targetTemperature = 16
   }
   targetTemperature = Math.trunc(targetTemperature)
+  logger.info({ targetTemperature, power: "on", toggle })
   return `${targetTemperature},${runningState},1,on`
 }
 
@@ -187,34 +194,39 @@ const controllSetW = new ControllSet(
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
 
+  const toggle = (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
   controllSet.tick(
     buildAirConditionerSetting(
       pidController.calcOutput(
         calcDiDeviation(
           meterResponse.washitsu.disconfortIndex,
           65,
-          73
+          73,
         ),
       ),
       meterResponse.washitsu.temperature,
       meterResponse.washitsu.humidity,
+      toggle
     ),
-    ((await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on")
+    toggle
   )
 
+
+  const toggleW = (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
   controllSetW.tick(
     buildAirConditionerSetting(
       pidControllerW.calcOutput(
         calcDiDeviation(
           meterResponse.youshitsu.disconfortIndex,
           65,
-          73
+          73,
         )
       ),
-      meterResponse.washitsu.temperature,
-      meterResponse.washitsu.humidity,
+      meterResponse.youshitsu.temperature,
+      meterResponse.youshitsu.humidity,
+      toggleW
     ),
-    (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
+    toggleW
   )
 }
 

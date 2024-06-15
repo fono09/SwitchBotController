@@ -131,3 +131,6 @@ dist
 
 # config(credential, etc)
 config/*.json
+
+# devices.json
+devices.json
