@@ -194,7 +194,7 @@ const controllSetW = new ControllSet(
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
   const di_max = 75
-  const di_min = 65
+  const di_min = 63
 
   const toggle =
     (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
