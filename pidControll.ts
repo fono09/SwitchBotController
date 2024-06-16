@@ -1,18 +1,19 @@
 export class PidController {
+  static #WindowLength = 16
+
   constructor(k_p: Number, k_i: Number, k_d: Number) {
     this.k_p = k_p
     this.k_i = k_i
     this.k_d = k_d
-    this.e_history = []
+    this.e_history = [...Array(PidController.#WindowLength)].fill(0)
   }
 
   appendHistory(e: Number) {
     this.e_history.unshift(e)
-    if (this.e_history.length > 16) {
+    if (this.e_history.length > PidController.#WindowLength) {
       this.e_history.pop()
     }
     const e_history = this.e_history
-    console.log({ e_history })
   }
 
   calcOutput(e: Number) {

@@ -10,6 +10,7 @@ import {
 } from "./swb-types.ts"
 import Logger from "https://deno.land/x/logger@v1.1.1/logger.ts"
 import { PidController } from "./pidControll.ts"
+import { DiCalculator } from "./diCalculator.ts"
 import { ControllSet } from "./controllSet.ts"
 
 const token = config.get("switchbot.token")
@@ -123,8 +124,7 @@ async function getAllMetersStatus(meters) {
       const humidity = meterStatusResponse.body.humidity
       const temperature = meterStatusResponse.body.temperature
 
-      const disconfortIndex = 0.81 * temperature +
-        0.01 * humidity * (0.99 * temperature - 14.3) + 46.3
+      const disconfortIndex = DiCalculator.di(temperature, humidity)
 
       return [e[0], { humidity, temperature, disconfortIndex }]
     })
@@ -134,50 +134,35 @@ async function getAllMetersStatus(meters) {
   }, {})
 }
 
-function calcTemperatureDiff(
-  di: Number,
-  di_t_min: Number,
-  di_t_max: Number,
-  humidity: Number,
-): void {
-  let di_t = 1
-  if (di < di_t_min) {
-    di_t = di_t_min
-  } else if (di_t_max < di) {
-    di_t = di_t_max
-  } else {
-    return 0
-  }
-  return (di_t - di) * (0.81 * 0.0099 * humidity)
-}
-
 function buildAirConditionerSetting(
-  pidOutput,
+  temperatureDiff,
   temperature,
   toggle,
 ): string {
   if (
-    (-1 < pidOutput && pidOutput < 1) ||
+    (-1 < temperatureDiff && temperatureDiff < 1) ||
     !toggle
   ) {
     logger.info({ power: "off", toggle })
     return "20,2,1,off"
   }
 
-  const runningState = pidOutput > 0 ? 5 : 2 // heater: 5, cooler: 2
+  const runningState = temperatureDiff > 0 ? 5 : 2 // heater: 5, cooler: 2
 
   let targetTemperature = temperature + temperatureDiff
-  if (pidOutput > 0 && targetTemperature > 23) {
+  if (temperatureDiff > 0 && targetTemperature > 23) {
     targetTemperature = 23
   } else if (targetTemperature == 0) {
     targetTemperature = 25
-  } else if (pidOutput < 0 && targetTemperature < 16) {
+  } else if (temperatureDiff < 0 && targetTemperature < 16) {
     targetTemperature = 16
   }
   targetTemperature = Math.trunc(targetTemperature)
   logger.info({ targetTemperature, power: "on", toggle })
   return `${targetTemperature},${runningState},1,on`
 }
+
+const diCalculator = new DiCalculator(63, 75)
 
 const pidController = new PidController(1, 1 / 3, 1)
 const controllSet = new ControllSet(
@@ -192,19 +177,16 @@ const controllSetW = new ControllSet(
 )
 
 async function tick() {
+  logger.info("Start tick")
   const meterResponse = await getAllMetersStatus(Meters)
-  const di_max = 75
-  const di_min = 63
 
   const toggle =
     (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
   controllSet.tick(
     buildAirConditionerSetting(
       pidController.calcOutput(
-        calcTemperatureDiff(
+        diCalculator.calcDeltaTemp(
           meterResponse.washitsu.disconfortIndex,
-          di_min,
-          di_max,
           meterResponse.washitsu.humidity,
         ),
       ),
@@ -213,16 +195,15 @@ async function tick() {
     ),
     toggle,
   )
+  logger.info({e_history_washitsu: pidController.e_history})
 
   const toggleW =
     (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
   controllSetW.tick(
     buildAirConditionerSetting(
       pidControllerW.calcOutput(
-        calcTemperatureDiff(
+        diCalculator.calcDeltaTemp(
           meterResponse.youshitsu.disconfortIndex,
-          di_min,
-          di_max,
           meterResponse.youshitsu.humidity,
         ),
       ),
@@ -231,6 +212,8 @@ async function tick() {
     ),
     toggleW,
   )
+  logger.info({e_history_youshitsu: pidControllerW.e_history})
+  logger.info("End tick")
 }
 
 tick()
