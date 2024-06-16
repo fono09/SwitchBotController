@@ -179,13 +179,13 @@ function buildAirConditionerSetting(
   return `${targetTemperature},${runningState},1,on`
 }
 
-const pidController = new PidController(1 / 3, 1 / 3, 1 / 3)
+const pidController = new PidController(1, 1 / 3, 1)
 const controllSet = new ControllSet(
   sendCommandToDevice,
   AirConditioner.deviceId,
 )
 
-const pidControllerW = new PidController(1 / 3, 1 / 3, 1 / 3)
+const pidControllerW = new PidController(1, 1 / 3, 1)
 const controllSetW = new ControllSet(
   sendCommandToDevice,
   AirConditionerW.deviceId
