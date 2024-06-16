@@ -1,13 +1,9 @@
-version: "3"
 services:
   swbc:
     image: denoland/deno:ubuntu
     volumes:
       - ./config:/config
       - ./:/app
-#    networks:
-#      - ext
-#      - br-ext
     command:
       ["run", "--allow-net", "--allow-read", "--allow-write", "--allow-sys", "/app/swb-ushiku-ctl.ts"]
     expose:
@@ -15,8 +11,3 @@ services:
     env_file:
       - .env
     restart: always
-# networks:
-#   ext:
-#   br-ext:
-#     driver: overlay
-#     external: true
