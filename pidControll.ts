@@ -12,7 +12,7 @@ export class PidController {
       this.e_history.pop()
     }
     const e_history = this.e_history
-    console.log({e_history})
+    console.log({ e_history })
   }
 
   calcOutput(e: Number) {

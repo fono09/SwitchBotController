@@ -82,7 +82,10 @@ if (
 ) {
   throw new Error("Cannot call API")
 } else {
-  await Deno.writeTextFile("/app/devices.json", JSON.stringify(getDevicesResponse.body))
+  await Deno.writeTextFile(
+    "/app/devices.json",
+    JSON.stringify(getDevicesResponse.body),
+  )
 }
 
 const Meters = {
@@ -131,10 +134,11 @@ async function getAllMetersStatus(meters) {
   }, {})
 }
 
-function calcDiDeviation(
+function calcTemperatureDiff(
   di: Number,
   di_t_min: Number,
   di_t_max: Number,
+  humidity: Number,
 ): void {
   let di_t = 1
   if (di < di_t_min) {
@@ -144,27 +148,23 @@ function calcDiDeviation(
   } else {
     return 0
   }
-  return di_t - di
+  return (di_t - di) * (0.81 * 0.0099 * humidity)
 }
 
 function buildAirConditionerSetting(
   pidOutput,
   temperature,
-  humidity,
   toggle,
 ): string {
-  logger.info({ pidOutput, temperature, humidity })
-  const runningState = pidOutput > 0 ? 5 : 2 // heater: 5, cooler: 2
-
   if (
-      (-1 < pidOutput && pidOutput < 1)
-      || !toggle
-    ) {
-
+    (-1 < pidOutput && pidOutput < 1) ||
+    !toggle
+  ) {
     logger.info({ power: "off", toggle })
     return "20,2,1,off"
   }
-  const temperatureDiff = pidOutput * (0.81 * 0.0099 * humidity)
+
+  const runningState = pidOutput > 0 ? 5 : 2 // heater: 5, cooler: 2
 
   let targetTemperature = temperature + temperatureDiff
   if (pidOutput > 0 && targetTemperature > 23) {
@@ -188,45 +188,48 @@ const controllSet = new ControllSet(
 const pidControllerW = new PidController(1, 1 / 3, 1)
 const controllSetW = new ControllSet(
   sendCommandToDevice,
-  AirConditionerW.deviceId
+  AirConditionerW.deviceId,
 )
 
 async function tick() {
   const meterResponse = await getAllMetersStatus(Meters)
+  const di_max = 75
+  const di_min = 65
 
-  const toggle = (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
+  const toggle =
+    (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
   controllSet.tick(
     buildAirConditionerSetting(
       pidController.calcOutput(
-        calcDiDeviation(
+        calcTemperatureDiff(
           meterResponse.washitsu.disconfortIndex,
-          65,
-          73,
+          di_min,
+          di_max,
+          meterResponse.washitsu.humidity,
         ),
       ),
       meterResponse.washitsu.temperature,
-      meterResponse.washitsu.humidity,
-      toggle
+      toggle,
     ),
-    toggle
+    toggle,
   )
 
-
-  const toggleW = (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
+  const toggleW =
+    (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
   controllSetW.tick(
     buildAirConditionerSetting(
       pidControllerW.calcOutput(
-        calcDiDeviation(
+        calcTemperatureDiff(
           meterResponse.youshitsu.disconfortIndex,
-          65,
-          73,
-        )
+          di_min,
+          di_max,
+          meterResponse.youshitsu.humidity,
+        ),
       ),
       meterResponse.youshitsu.temperature,
-      meterResponse.youshitsu.humidity,
-      toggleW
+      toggleW,
     ),
-    toggleW
+    toggleW,
   )
 }
 
