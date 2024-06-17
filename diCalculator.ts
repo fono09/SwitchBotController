@@ -22,9 +22,8 @@ export class DiCalculator {
       return this.min - di
     } else if (this.max < di) {
       return this.max - di
-    } else {
-      return 0
     }
+    return 0
   }
 
   static #deltaTempFromDeltaDi(
@@ -34,11 +33,12 @@ export class DiCalculator {
     return deltaDi * (0.81 * 0.0099 * humidity)
   }
 
-  calcDeltaTemp(
+  calcTargetTemp(
     di: Number,
+    temperature: Number,
     humidity: Number,
   ) {
-    return DiCalculator.#deltaTempFromDeltaDi(
+    return temperature + DiCalculator.#deltaTempFromDeltaDi(
       this.#calcDeltaDi(di),
       humidity,
     )

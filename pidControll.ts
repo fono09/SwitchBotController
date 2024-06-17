@@ -5,35 +5,33 @@ export class PidController {
     this.k_p = k_p
     this.k_i = k_i
     this.k_d = k_d
+    this.current_history = [...Array(2)].fill(0)
+    this.target_history = [...Array(2)].fill(0)
     this.e_history = [...Array(PidController.#WindowLength)].fill(0)
   }
 
-  appendHistory(e: Number) {
+  appendHistory(e: Number, current: Number, target: Number) {
     this.e_history.unshift(e)
-    if (this.e_history.length > PidController.#WindowLength) {
-      this.e_history.pop()
-    }
-    const e_history = this.e_history
+    this.e_history.pop()
+
+    this.current_history.unshift(current)
+    this.current_history.pop()
+
+    this.target_history.unshift(target)
+    this.target_history.pop()
   }
 
-  calcOutput(e: Number) {
-    this.appendHistory(e)
+  calcOutput(current: Number, target: Number) {
+    const e = target - current
+    this.appendHistory(e, current, target)
 
     const p = this.k_p * e
     const i = this.k_i * this.e_history.reduce((cur, acc) => acc + cur, 0)
-    const d = this.k_d * (e - (this.e_history[1] ?? 0))
+    const d = this.k_d * (
+      (this.target_history[1] - this.target_history[0]) -
+      (this.current_history[1] - this.current_history[0])
+    )
 
-    const json = this.json()
-
-    return p + i + d
-  }
-
-  json() {
-    return {
-      k_p: this.k_p,
-      k_i: this.k_i,
-      k_d: this.k_d,
-      e_history: this.e_history,
-    }
+    return current + p + i + d
   }
 }

@@ -135,10 +135,12 @@ async function getAllMetersStatus(meters) {
 }
 
 function buildAirConditionerSetting(
-  temperatureDiff,
-  temperature,
+  targetTemp,
+  currentTemp,
   toggle,
 ): string {
+  const temperatureDiff = targetTemp - currentTemp
+  logger.info({ targetTemp, currentTemp, temperatureDiff })
   if (
     (-1 < temperatureDiff && temperatureDiff < 1) ||
     !toggle
@@ -149,7 +151,7 @@ function buildAirConditionerSetting(
 
   const runningState = temperatureDiff > 0 ? 5 : 2 // heater: 5, cooler: 2
 
-  let targetTemperature = temperature + temperatureDiff
+  let targetTemperature = targetTemp
   if (temperatureDiff > 0 && targetTemperature > 23) {
     targetTemperature = 23
   } else if (targetTemperature == 0) {
@@ -185,8 +187,10 @@ async function tick() {
   controllSet.tick(
     buildAirConditionerSetting(
       pidController.calcOutput(
-        diCalculator.calcDeltaTemp(
+        meterResponse.washitsu.temperature,
+        diCalculator.calcTargetTemp(
           meterResponse.washitsu.disconfortIndex,
+          meterResponse.washitsu.temperature,
           meterResponse.washitsu.humidity,
         ),
       ),
@@ -195,15 +199,17 @@ async function tick() {
     ),
     toggle,
   )
-  logger.info({e_history_washitsu: pidController.e_history})
+  logger.info({ e_history_washitsu: pidController.e_history })
 
   const toggleW =
     (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
   controllSetW.tick(
     buildAirConditionerSetting(
       pidControllerW.calcOutput(
-        diCalculator.calcDeltaTemp(
+        meterResponse.youshitsu.temperature,
+        diCalculator.calcTargetTemp(
           meterResponse.youshitsu.disconfortIndex,
+          meterResponse.youshitsu.temperature,
           meterResponse.youshitsu.humidity,
         ),
       ),
@@ -212,7 +218,7 @@ async function tick() {
     ),
     toggleW,
   )
-  logger.info({e_history_youshitsu: pidControllerW.e_history})
+  logger.info({ e_history_youshitsu: pidControllerW.e_history })
   logger.info("End tick")
 }
 
