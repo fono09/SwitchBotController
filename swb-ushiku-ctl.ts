@@ -124,9 +124,7 @@ async function getAllMetersStatus(meters) {
       const humidity = meterStatusResponse.body.humidity
       const temperature = meterStatusResponse.body.temperature
 
-      const disconfortIndex = DiCalculator.di(temperature, humidity)
-
-      return [e[0], { humidity, temperature, disconfortIndex }]
+      return [e[0], { humidity, temperature }]
     })
   const responces = await Promise.all(keyAndPromise)
   return responces.reduce((acc, cur) => {
@@ -141,10 +139,7 @@ function buildAirConditionerSetting(
 ): string {
   const temperatureDiff = targetTemp - currentTemp
   logger.info({ targetTemp, currentTemp, temperatureDiff })
-  if (
-    (-1 < temperatureDiff && temperatureDiff < 1) ||
-    !toggle
-  ) {
+  if (!toggle) {
     logger.info({ power: "off", toggle })
     return "20,2,1,off"
   }
@@ -159,20 +154,25 @@ function buildAirConditionerSetting(
   } else if (temperatureDiff < 0 && targetTemperature < 16) {
     targetTemperature = 16
   }
+
+  let fanSpeed = Math.trunc(Math.abs(temperatureDiff))
+  fanSpeed = fanSpeed < 4 ? fanSpeed : 3
+  fanSpeed = fanSpeed != 0 ? fanSpeed : 1
+
   targetTemperature = Math.trunc(targetTemperature)
   logger.info({ targetTemperature, power: "on", toggle })
-  return `${targetTemperature},${runningState},1,on`
+  return `${targetTemperature},${runningState},${fanSpeed},on`
 }
 
-const diCalculator = new DiCalculator(63, 75)
+const diCalculator = new DiCalculator(17, 25)
 
-const pidController = new PidController(1, 1 / 3, 1)
+const pidController = new PidController(1, 5, 2)
 const controllSet = new ControllSet(
   sendCommandToDevice,
   AirConditioner.deviceId,
 )
 
-const pidControllerW = new PidController(1, 1 / 3, 1)
+const pidControllerW = new PidController(1, 5, 2)
 const controllSetW = new ControllSet(
   sendCommandToDevice,
   AirConditionerW.deviceId,
@@ -180,45 +180,45 @@ const controllSetW = new ControllSet(
 
 async function tick() {
   logger.info("Start tick")
-  const meterResponse = await getAllMetersStatus(Meters)
+  let meterResponse, toggle, toggleW
+  try {
+    meterResponse = await getAllMetersStatus(Meters)
+    toggle =
+      (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power ===
+        "on"
+    toggleW = (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
+  } catch (e) {
+    return
+  }
 
-  const toggle =
-    (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power === "on"
-  controllSet.tick(
-    buildAirConditionerSetting(
-      pidController.calcOutput(
-        meterResponse.washitsu.temperature,
-        diCalculator.calcTargetTemp(
-          meterResponse.washitsu.disconfortIndex,
-          meterResponse.washitsu.temperature,
-          meterResponse.washitsu.humidity,
-        ),
-      ),
+  const acSetting = buildAirConditionerSetting(
+    pidController.calcOutput(
       meterResponse.washitsu.temperature,
-      toggle,
+      diCalculator.calcTargetTemp(
+        meterResponse.washitsu.temperature,
+      ),
     ),
+    meterResponse.washitsu.temperature,
     toggle,
   )
-  logger.info({ e_history_washitsu: pidController.e_history })
+  controllSet.tick(acSetting, toggle)
+  logger.info({ acSetting, toggle })
+  logger.info({ pidController: pidController.currentStatus })
 
-  const toggleW =
-    (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
-  controllSetW.tick(
-    buildAirConditionerSetting(
-      pidControllerW.calcOutput(
-        meterResponse.youshitsu.temperature,
-        diCalculator.calcTargetTemp(
-          meterResponse.youshitsu.disconfortIndex,
-          meterResponse.youshitsu.temperature,
-          meterResponse.youshitsu.humidity,
-        ),
-      ),
+  const acSettingW = buildAirConditionerSetting(
+    pidControllerW.calcOutput(
       meterResponse.youshitsu.temperature,
-      toggleW,
+      diCalculator.calcTargetTemp(
+        meterResponse.youshitsu.temperature,
+      ),
     ),
+    meterResponse.youshitsu.temperature,
     toggleW,
   )
-  logger.info({ e_history_youshitsu: pidControllerW.e_history })
+  controllSetW.tick(acSettingW, toggleW)
+  logger.info({ acSettingW, toggleW })
+  logger.info({ pidControllerW: pidControllerW.currentStatus })
+
   logger.info("End tick")
 }
 

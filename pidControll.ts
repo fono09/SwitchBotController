@@ -1,37 +1,47 @@
 export class PidController {
-  static #WindowLength = 16
-
-  constructor(k_p: Number, k_i: Number, k_d: Number) {
+  constructor(k_p: Number, t_i: Number, t_d: Number) {
     this.k_p = k_p
-    this.k_i = k_i
-    this.k_d = k_d
-    this.current_history = [...Array(2)].fill(0)
-    this.target_history = [...Array(2)].fill(0)
-    this.e_history = [...Array(PidController.#WindowLength)].fill(0)
+    this.t_i = t_i
+    this.t_d = t_d
+    this.e_history = []
+    this.currentStatus = {}
+    this.windowLength = t_i > t_d ? t_i : t_d
   }
 
-  appendHistory(e: Number, current: Number, target: Number) {
+  appendHistory(e: Number) {
     this.e_history.unshift(e)
-    this.e_history.pop()
 
-    this.current_history.unshift(current)
-    this.current_history.pop()
-
-    this.target_history.unshift(target)
-    this.target_history.pop()
+    while (this.windowLength < this.e_history.length) {
+      this.e_history.pop()
+    }
   }
 
   calcOutput(current: Number, target: Number) {
     const e = target - current
-    this.appendHistory(e, current, target)
+    this.appendHistory(e)
+    if (
+      this.e_history.length < this.t_d ||
+      this.e_history.length < this.t_i
+    ) {
+      return current
+    }
 
-    const p = this.k_p * e
-    const i = this.k_i * this.e_history.reduce((cur, acc) => acc + cur, 0)
-    const d = this.k_d * (
-      (this.target_history[1] - this.target_history[0]) -
-      (this.current_history[1] - this.current_history[0])
-    )
+    const i = this.e_history.reduce((cur, acc) => acc + cur, 0) / this.t_i
+    const d = this.t_d *
+      (this.e_history[Math.trunc(this.t_d)] - this.e_history[0])
+    const output = current + this.k_p * (e + i + d)
 
-    return current + p + i + d
+    this.currentStatus = {
+      current_history: this.current_history,
+      target_history: this.target_history,
+      e_history: this.e_history,
+      current,
+      target,
+      i,
+      d,
+      output,
+    }
+
+    return output
   }
 }
