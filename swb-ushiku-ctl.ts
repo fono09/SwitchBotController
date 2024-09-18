@@ -139,7 +139,7 @@ function buildAirConditionerSetting(
 ): string {
   const temperatureDiff = targetTemp - currentTemp
   logger.info({ targetTemp, currentTemp, temperatureDiff })
-  if (!toggle) {
+  if (!toggle || Math.abs(temperatureDiff) < 0.5) {
     logger.info({ power: "off", toggle })
     return "20,2,1,off"
   }
@@ -164,7 +164,7 @@ function buildAirConditionerSetting(
   return `${targetTemperature},${runningState},${fanSpeed},on`
 }
 
-const diCalculator = new DiCalculator(17, 25)
+const diCalculator = new DiCalculator(17, 26)
 
 const pidController = new PidController(1, 5, 2)
 const controllSet = new ControllSet(
