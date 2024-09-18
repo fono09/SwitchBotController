@@ -156,7 +156,7 @@ function buildAirConditionerSetting(
   }
 
   let fanSpeed = Math.trunc(Math.abs(temperatureDiff))
-  fanSpeed = fanSpeed < 4 ? fanSpeed : 3
+  fanSpeed = fanSpeed < 5 ? fanSpeed : 4
   fanSpeed = fanSpeed != 0 ? fanSpeed : 1
 
   targetTemperature = Math.trunc(targetTemperature)
