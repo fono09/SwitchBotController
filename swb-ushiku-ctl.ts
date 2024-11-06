@@ -183,11 +183,17 @@ async function tick() {
   let meterResponse, toggle, toggleW
   try {
     meterResponse = await getAllMetersStatus(Meters)
-    toggle =
-      (await getMeterStatus(AirConditionerPlugMini.deviceId)).body.power ===
-        "on"
-    toggleW = (await getMeterStatus(ColorBulbW.deviceId)).body.power === "on"
+    const toggleStatusSource = await getMeterStatus(
+      AirConditionerPlugMini.deviceId,
+    )
+    const toggleStatusSourceW = await getMeterStatus(ColorBulbW.deviceId)
+
+    // console.log({ toggleStatusSource, toggleStatusSourceW })
+
+    toggle = toggleStatusSource.body.power === "on"
+    toggleW = toggleStatusSourceW.body.power === "on"
   } catch (e) {
+    console.log(`Cannot fetch meters or toggleStatusSource: ${e}`)
     return
   }
 
