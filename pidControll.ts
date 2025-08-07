@@ -5,7 +5,7 @@ export class PidController {
     this.t_d = t_d
     this.e_history = []
     this.currentStatus = {}
-    this.windowLength = t_i > t_d ? t_i : t_d
+    this.windowLength = (t_i > t_d ? t_i : t_d) * 2
   }
 
   appendHistory(e: Number) {
